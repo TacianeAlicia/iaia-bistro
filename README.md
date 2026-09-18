@@ -1,18 +1,15 @@
-# IAIÁ BISTRÔ — site unificado
+# Área do Proprietário — IAIÁ BISTRÔ
 
-Esta versão reúne a home cinematográfica, cardápio completo, experiência, SEO, analytics,
-404, obrigado, privacidade, WhatsApp, localização e o novo visual do cardápio baseado
-nas imagens fornecidas.
+## Configuração única
+1. Abra `admin/config.js`.
+2. Mantenha a URL do projeto Supabase.
+3. Substitua `COLE_AQUI_SUA_PUBLISHABLE_KEY` pela chave **Publishable key** que aparece em Supabase → Project Settings → API Keys.
+4. **Não use** Secret key, `service_role` ou a senha do banco.
+5. Salve o arquivo e faça um novo deploy na Vercel.
 
-## Publicação
-Envie todos os arquivos desta pasta para a Vercel como projeto estático.
-O `vercel.json` já está incluído.
+Acesse depois: `/admin/`
 
-## Navegação corrigida
-- Experiência: `/#experiencia` a partir de qualquer página.
-- Privacidade: `/politica-de-privacidade.html`.
-- Cardápio: `/cardapio.html`.
+O login é feito pelo usuário criado em Supabase Authentication → Users.
 
-## Observação
-O conteúdo visual do cardápio foi recriado em HTML/CSS para manter texto pesquisável,
-acessível e indexável pelo Google, em vez de transformar as páginas em imagens.
+### Proprietário atual
+E-mail de acesso: `iaiabistro97@gmail.com`
