@@ -58,10 +58,10 @@
   }
 
   function formatWhatsapp(value) {
-    const number = normalizeWhatsapp(value);
+    const n = normalizeWhatsapp(value);
 
-    if (number.length === 13) {
-      return `55 (${number.slice(2,4)}) ${number.slice(4,9)}-${number.slice(9)}`;
+    if (n.length === 13) {
+      return `55 (${n.slice(2, 4)}) ${n.slice(4, 9)}-${n.slice(9)}`;
     }
 
     return value || '';
@@ -277,9 +277,7 @@
     select.innerHTML =
       '<option value="">Todas as categorias</option>' +
       categories.map(cat =>
-        `<option value="${attr(cat.id)}">
-          ${esc(cat.name)}
-        </option>`
+        `<option value="${attr(cat.id)}">${esc(cat.name)}</option>`
       ).join('');
 
     if (
@@ -327,8 +325,7 @@
 
     const filtered = selected
       ? items.filter(item =>
-          String(item.category_id || '') ===
-          String(selected)
+          String(item.category_id) === String(selected)
         )
       : items;
 
@@ -404,23 +401,20 @@
       </table>
     `;
 
-    list.querySelectorAll('[data-edit]')
-      .forEach(button => {
-        button.onclick = () =>
-          editItem(button.dataset.edit);
-      });
+    list.querySelectorAll('[data-edit]').forEach(button => {
+      button.onclick = () =>
+        editItem(button.dataset.edit);
+    });
 
-    list.querySelectorAll('[data-toggle]')
-      .forEach(button => {
-        button.onclick = () =>
-          toggleItem(button.dataset.toggle);
-      });
+    list.querySelectorAll('[data-toggle]').forEach(button => {
+      button.onclick = () =>
+        toggleItem(button.dataset.toggle);
+    });
 
-    list.querySelectorAll('[data-delete]')
-      .forEach(button => {
-        button.onclick = () =>
-          deleteItem(button.dataset.delete);
-      });
+    list.querySelectorAll('[data-delete]').forEach(button => {
+      button.onclick = () =>
+        deleteItem(button.dataset.delete);
+    });
   }
 
   function newCategory() {
@@ -460,8 +454,7 @@
     $('catForm').onsubmit = async e => {
       e.preventDefault();
 
-      const name =
-        $('catName').value.trim();
+      const name = $('catName').value.trim();
 
       if (!name) return;
 
@@ -498,8 +491,7 @@
       name: '',
       description: '',
       price: '',
-      category_id:
-        categories[0]?.id || '',
+      category_id: categories[0]?.id || '',
       active: true,
       featured: false,
       sort_order: 0,
@@ -546,8 +538,7 @@
               ${categories.map(cat => `
                 <option
                   value="${attr(cat.id)}"
-                  ${String(cat.id) ===
-                    String(item.category_id)
+                  ${String(cat.id) === String(item.category_id)
                     ? 'selected'
                     : ''}>
                   ${esc(cat.name)}
@@ -636,7 +627,6 @@
         ? await sb.from('menu_items')
             .update(payload)
             .eq('id', id)
-
         : await sb.from('menu_items')
             .insert(payload);
 
@@ -750,7 +740,7 @@
               <td>
                 ${esc(
                   String(r.reservation_time || '')
-                    .slice(0,5)
+                    .slice(0, 5)
                 )}
               </td>
 
@@ -764,35 +754,23 @@
                   class="res-status"
                   data-id="${attr(r.id)}">
 
-                  <option
-                    value="pending"
-                    ${r.status === 'pending'
-                      ? 'selected'
-                      : ''}>
+                  <option value="pending"
+                    ${r.status === 'pending' ? 'selected' : ''}>
                     Pendente
                   </option>
 
-                  <option
-                    value="confirmed"
-                    ${r.status === 'confirmed'
-                      ? 'selected'
-                      : ''}>
+                  <option value="confirmed"
+                    ${r.status === 'confirmed' ? 'selected' : ''}>
                     Confirmada
                   </option>
 
-                  <option
-                    value="cancelled"
-                    ${r.status === 'cancelled'
-                      ? 'selected'
-                      : ''}>
+                  <option value="cancelled"
+                    ${r.status === 'cancelled' ? 'selected' : ''}>
                     Cancelada
                   </option>
 
-                  <option
-                    value="completed"
-                    ${r.status === 'completed'
-                      ? 'selected'
-                      : ''}>
+                  <option value="completed"
+                    ${r.status === 'completed' ? 'selected' : ''}>
                     Concluída
                   </option>
 
@@ -801,9 +779,7 @@
               </td>
 
               <td>
-                ${r.notes
-                  ? esc(r.notes)
-                  : '—'}
+                ${r.notes ? esc(r.notes) : '—'}
               </td>
 
               <td>
@@ -858,12 +834,12 @@
 
         button.onclick = async () => {
 
-          const id =
-            button.dataset.resDelete;
-
           if (!confirm(
             'Excluir esta reserva permanentemente?'
           )) return;
+
+          const id =
+            button.dataset.resDelete;
 
           button.disabled = true;
           button.textContent = 'Excluindo...';
@@ -948,9 +924,7 @@
 
               <td>
                 <span class="status">
-                  ${r.published
-                    ? 'Publicada'
-                    : 'Oculta'}
+                  ${r.published ? 'Publicada' : 'Oculta'}
                 </span>
               </td>
 
@@ -960,9 +934,7 @@
                   type="button"
                   class="mini"
                   data-review-toggle="${attr(r.id)}">
-                  ${r.published
-                    ? 'Ocultar'
-                    : 'Publicar'}
+                  ${r.published ? 'Ocultar' : 'Publicar'}
                 </button>
 
               </td>
@@ -1104,16 +1076,14 @@
         .maybeSingle();
 
     if (error) {
-      if ($('settingsMessage'))
-        $('settingsMessage').textContent =
-          error.message;
+      $('settingsMessage').textContent =
+        error.message;
       return;
     }
 
     if (!data) {
-      if ($('settingsMessage'))
-        $('settingsMessage').textContent =
-          'Registro do restaurante não encontrado.';
+      $('settingsMessage').textContent =
+        'Registro do restaurante não encontrado.';
       return;
     }
 
@@ -1138,6 +1108,8 @@
 
     $('rDescription').value =
       data.description || '';
+
+    $('settingsMessage').textContent = '';
   }
 
   async function saveRestaurant() {
@@ -1165,17 +1137,18 @@
       );
 
     if (
-      !whatsapp ||
-      whatsapp.length !== 13
+      whatsapp.length !== 13 ||
+      !whatsapp.startsWith('55')
     ) {
       $('settingsMessage').textContent =
-        'Digite: 55 (17) 99702-5497';
+        'Digite o WhatsApp no formato: 55 (17) 99702-5497';
       return;
     }
 
     const result =
       await sb.from('restaurants')
         .update({
+
           name:
             $('rName').value.trim(),
 
@@ -1196,6 +1169,7 @@
 
           description:
             $('rDescription').value.trim()
+
         })
         .eq('id', data.id);
 
@@ -1220,7 +1194,7 @@
     ).toLocaleDateString('pt-BR');
   }
 
-  // LOGIN
+  /* LOGIN */
   if ($('loginForm')) {
     $('loginForm').addEventListener(
       'submit',
@@ -1228,7 +1202,7 @@
     );
   }
 
-  // SAIR
+  /* SAIR */
   if ($('logoutBtn')) {
     $('logoutBtn').addEventListener(
       'click',
@@ -1236,7 +1210,7 @@
     );
   }
 
-  // FECHAR MODAL
+  /* MODAL */
   if ($('closeModal')) {
     $('closeModal').addEventListener(
       'click',
@@ -1255,7 +1229,7 @@
     );
   }
 
-  // MENU LATERAL
+  /* MENU */
   document
     .querySelectorAll('.nav-item')
     .forEach(button => {
@@ -1274,7 +1248,7 @@
       );
     });
 
-  // FILTRO DE CATEGORIAS
+  /* FILTRO */
   if ($('categoryFilter')) {
     $('categoryFilter').addEventListener(
       'change',
@@ -1282,7 +1256,7 @@
     );
   }
 
-  // NOVA CATEGORIA
+  /* NOVA CATEGORIA */
   if ($('newCategoryBtn')) {
     $('newCategoryBtn').addEventListener(
       'click',
@@ -1290,7 +1264,7 @@
     );
   }
 
-  // NOVO PRATO
+  /* NOVO PRATO */
   if ($('newItemBtn')) {
     $('newItemBtn').addEventListener(
       'click',
@@ -1298,7 +1272,7 @@
     );
   }
 
-  // ATUALIZAR RESERVAS
+  /* RESERVAS */
   if ($('refreshReservations')) {
     $('refreshReservations').addEventListener(
       'click',
@@ -1306,7 +1280,7 @@
     );
   }
 
-  // NOVA AVALIAÇÃO
+  /* AVALIAÇÕES */
   if ($('newReviewBtn')) {
     $('newReviewBtn').addEventListener(
       'click',
@@ -1314,7 +1288,7 @@
     );
   }
 
-  // SALVAR CONFIGURAÇÕES
+  /* CONFIGURAÇÕES */
   if ($('saveRestaurant')) {
     $('saveRestaurant').addEventListener(
       'click',
