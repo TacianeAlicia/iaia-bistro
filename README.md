@@ -13,3 +13,4 @@ O login é feito pelo usuário criado em Supabase Authentication → Users.
 
 ### Proprietário atual
 E-mail de acesso: `iaiabistro97@gmail.com`
+Deploy conectado ao Vercel.
