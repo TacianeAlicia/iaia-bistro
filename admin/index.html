@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#11100f">
+  <title>Área do Proprietário | IAIÁ BISTRÔ</title>
+  <link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+  <div id="loginView" class="auth-shell">
+    <div class="auth-card">
+      <div class="brand-mark">iá<br>iá</div>
+      <p class="eyebrow">ÁREA DO PROPRIETÁRIO</p>
+      <h1>IAIÁ BISTRÔ</h1>
+      <p class="muted">Entre para administrar o restaurante.</p>
+      <form id="loginForm">
+        <label>E-mail<input id="email" type="email" autocomplete="username" placeholder="proprietário@..." required></label>
+        <label>Senha<input id="password" type="password" autocomplete="current-password" placeholder="Sua senha" required></label>
+        <button class="primary" type="submit">Entrar <span>→</span></button>
+        <p id="loginError" class="error" role="alert"></p>
+      </form>
+      <p class="security-note">Acesso protegido pelo Supabase Auth.</p>
+    </div>
+  </div>
+
+  <div id="appView" class="app hidden">
+    <aside class="sidebar">
+      <div class="side-brand"><span>iá<br>iá</span><div><strong>IAIÁ</strong><small>BISTRÔ</small></div></div>
+      <nav>
+        <button class="nav-item active" data-section="dashboard">Visão geral</button>
+        <button class="nav-item" data-section="cardapio">Cardápio</button>
+        <button class="nav-item" data-section="reservas">Reservas</button>
+        <button class="nav-item" data-section="avaliacoes">Avaliações</button>
+        <button class="nav-item" data-section="configuracoes">Configurações</button>
+      </nav>
+      <a class="site-link" href="/" target="_blank" rel="noopener">Ver site ↗</a>
+      <button id="logoutBtn" class="logout">Sair</button>
+    </aside>
+
+    <main class="main">
+      <header class="topbar"><div><p class="eyebrow">PAINEL DO RESTAURANTE</p><h2 id="pageTitle">Visão geral</h2></div><div class="user-pill" id="userEmail"></div></header>
+
+      <section id="dashboard" class="page-section active-section">
+        <div class="welcome"><div><p class="eyebrow">BEM-VINDA AO IAIÁ</p><h1>Seu restaurante, <em>sob controle.</em></h1><p>Gerencie o cardápio e acompanhe o atendimento em um só lugar.</p></div><a href="/cardapio.html" target="_blank" class="secondary">Abrir cardápio ↗</a></div>
+        <div class="stats"><article><span>Pratos ativos</span><strong id="statItems">—</strong></article><article><span>Categorias</span><strong id="statCategories">—</strong></article><article><span>Reservas pendentes</span><strong id="statReservations">—</strong></article><article><span>Avaliações publicadas</span><strong id="statReviews">—</strong></article></div>
+        <div class="panel"><div class="panel-head"><div><p class="eyebrow">ATALHOS</p><h3>O que você quer atualizar?</h3></div></div><div class="quick-grid"><button data-go="cardapio">🍽️ Editar cardápio</button><button data-go="reservas">📅 Ver reservas</button><button data-go="avaliacoes">★ Gerenciar avaliações</button><button data-go="configuracoes">⚙️ Dados do restaurante</button></div></div>
+      </section>
+
+      <section id="cardapio" class="page-section">
+        <div class="section-head"><div><p class="eyebrow">CONTEÚDO</p><h2>Cardápio</h2><p class="muted">Crie categorias e altere pratos, preços e disponibilidade.</p></div><button id="newItemBtn" class="primary">+ Novo prato</button></div>
+        <div class="toolbar"><select id="categoryFilter"><option value="">Todas as categorias</option></select><button id="newCategoryBtn" class="secondary">+ Categoria</button></div>
+        <div id="menuList" class="table-card"></div>
+      </section>
+
+      <section id="reservas" class="page-section">
+        <div class="section-head"><div><p class="eyebrow">ATENDIMENTO</p><h2>Reservas</h2><p class="muted">Acompanhe os pedidos de reserva enviados pelo site.</p></div><button id="refreshReservations" class="secondary">Atualizar</button></div>
+        <div id="reservationsList" class="table-card"></div>
+      </section>
+
+      <section id="avaliacoes" class="page-section">
+        <div class="section-head"><div><p class="eyebrow">PROVA SOCIAL</p><h2>Avaliações</h2><p class="muted">Cadastre avaliações reais e escolha quais ficam visíveis no site.</p></div><button id="newReviewBtn" class="primary">+ Nova avaliação</button></div>
+        <div id="reviewsList" class="table-card"></div>
+      </section>
+
+      <section id="configuracoes" class="page-section">
+        <div class="section-head"><div><p class="eyebrow">IDENTIDADE</p><h2>Configurações</h2><p class="muted">Atualize os dados básicos que o site utiliza.</p></div><button id="saveRestaurant" class="primary">Salvar alterações</button></div>
+        <form id="restaurantForm" class="form-card"><div class="form-grid"><label>Nome<input id="rName" required></label><label>WhatsApp<input id="rWhatsapp" required></label><label class="full">Endereço<textarea id="rAddress" rows="3"></textarea></label><label>Google Maps<input id="rMaps"></label><label>Instagram<input id="rInstagram"></label><label class="full">Descrição<textarea id="rDescription" rows="4"></textarea></label></div><p id="settingsMessage" class="success"></p></form>
+      </section>
+    </main>
+  </div>
+
+  <div id="modal" class="modal hidden"><div class="modal-card"><button id="closeModal" class="close">×</button><div id="modalContent"></div></div></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/admin/config.js"></script>
+  <script src="/admin/admin.js" defer></script>
+</body>
+</html>
