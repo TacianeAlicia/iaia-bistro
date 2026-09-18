@@ -1,50 +1,1327 @@
 (() => {
+  'use strict';
+
   const cfg = window.IAIA_SUPABASE || {};
-  const clientLib = window.supabase;
+  const supabaseLib = window.supabase;
+
   const $ = id => document.getElementById(id);
-  const loginView = $('loginView'), appView = $('appView');
-  let sb, categories = [], items = [];
 
-  function showError(msg){ $('loginError').textContent = msg || ''; }
-  function money(v){ return v == null || v === '' ? '—' : Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
-  function slugify(s){ return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); }
-  function openModal(html){ $('modalContent').innerHTML=html; $('modal').classList.remove('hidden'); }
-  function closeModal(){ $('modal').classList.add('hidden'); $('modalContent').innerHTML=''; }
-  function go(section){ document.querySelectorAll('.page-section').forEach(x=>x.classList.remove('active-section')); $(section).classList.add('active-section'); document.querySelectorAll('.nav-item').forEach(x=>x.classList.toggle('active',x.dataset.section===section)); const titles={dashboard:'Visão geral',cardapio:'Cardápio',reservas:'Reservas',avaliacoes:'Avaliações',configuracoes:'Configurações'}; $('pageTitle').textContent=titles[section]||section; if(section==='cardapio')loadMenu(); if(section==='reservas')loadReservations(); if(section==='avaliacoes')loadReviews(); if(section==='configuracoes')loadRestaurant(); }
+  let sb = null;
+  let categories = [];
+  let items = [];
 
-  async function init(){
-    if(!clientLib || !cfg.url || !cfg.anonKey || cfg.anonKey.startsWith('COLE_')) { showError('Configure a chave anon/public do Supabase em /admin/config.js antes de entrar.'); return; }
-    sb=clientLib.createClient(cfg.url,cfg.anonKey);
-    const {data:{session}}=await sb.auth.getSession(); if(session) enter(session); else loginView.classList.remove('hidden');
-    sb.auth.onAuthStateChange((_e,s)=>{ if(s) enter(s); });
+  function esc(value) {
+    return String(value ?? '').replace(/[&<>"']/g, c => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[c]));
   }
-  async function enter(session){ loginView.classList.add('hidden'); appView.classList.remove('hidden'); $('userEmail').textContent=session.user.email||''; await loadDashboard(); }
-  $('loginForm').addEventListener('submit',async e=>{e.preventDefault();showError('');const {error}=await sb.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(error)showError(error.message==='Invalid login credentials'?'E-mail ou senha inválidos.':error.message);});
-  $('logoutBtn').addEventListener('click',async()=>{await sb.auth.signOut();appView.classList.add('hidden');loginView.classList.remove('hidden');});
-  $('closeModal').addEventListener('click',closeModal); $('modal').addEventListener('click',e=>{if(e.target===$('modal'))closeModal();});
-  document.querySelectorAll('.nav-item').forEach(b=>b.addEventListener('click',()=>go(b.dataset.section))); document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.go)));
 
-  async function loadDashboard(){
-    const [a,b,c,d]=await Promise.all([sb.from('menu_items').select('id',{count:'exact',head:true}).eq('active',true),sb.from('categories').select('id',{count:'exact',head:true}).eq('active',true),sb.from('reservations').select('id',{count:'exact',head:true}).eq('status','pending'),sb.from('reviews').select('id',{count:'exact',head:true}).eq('published',true)]);
-    $('statItems').textContent=a.count??0;$('statCategories').textContent=b.count??0;$('statReservations').textContent=c.count??0;$('statReviews').textContent=d.count??0;
+  function attr(value) {
+    return esc(value);
   }
-  async function loadCategories(){const {data,error}=await sb.from('categories').select('*').order('sort_order').order('name');if(error){alert(error.message);return;}categories=data||[];const sel=$('categoryFilter');const current=sel.value||'';sel.innerHTML='<option value="">Todas as categorias</option>'+categories.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');if(current)sel.value=current;}
 
-async function loadMenu(){await loadCategories();const {data,error}=await sb.from('menu_items').select('*,categories(name)').order('sort_order').order('name');if(error){$('menuList').innerHTML=`<p class="error">${esc(error.message)}</p>`;return;}items=data||[];renderMenu();}
+  function money(value) {
+    if (value === null || value === undefined || value === '') {
+      return '—';
+    }
 
-function renderMenu(){if(!items.length){$('menuList').innerHTML='<div style="padding:30px">Nenhum prato encontrado.</div>';return;}$('menuList').innerHTML=`<table class="table"><thead><tr><th>Prato</th><th>Categoria</th><th>Preço</th><th>Status</th><th>Ações</th></tr></thead><tbody>${items.map(i=>`<tr data-category="${i.category_id||''}"><td><strong>${esc(i.name)}</strong><br><small>${esc(i.description||'')}</small></td><td>${esc(i.categories?.name||'—')}</td><td>${money(i.price)}</td><td><span class="status">${i.active?'Ativo':'Oculto'}</span></td><td><div class="actions"><button class="mini" data-edit="${i.id}">Editar</button><button class="mini" data-toggle="${i.id}">${i.active?'Ocultar':'Ativar'}</button><button class="mini danger" data-delete="${i.id}">Excluir</button></div></td></tr>`).join('')}</tbody></table>`;document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editItem(b.dataset.edit));document.querySelectorAll('[data-toggle]').forEach(b=>b.onclick=()=>toggleItem(b.dataset.toggle));document.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>deleteItem(b.dataset.delete));}
+    return Number(value).toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    });
+  }
 
-$('categoryFilter').addEventListener('change',()=>{const cat=$('categoryFilter').value;document.querySelectorAll('#menuList tbody tr').forEach(row=>{row.style.display=!cat||row.dataset.category===cat?'':'none';});});$('newCategoryBtn').addEventListener('click',newCategory);$('newItemBtn').addEventListener('click',()=>editItem());
-  function newCategory(){openModal(`<h3>Nova categoria</h3><form id="catForm" class="modal-form"><label>Nome<input id="catName" required></label><label>Descrição<textarea id="catDesc" rows="3"></textarea></label><div class="modal-actions"><button type="button" class="secondary" id="cancel">Cancelar</button><button class="primary">Criar categoria</button></div></form>`);$('cancel').onclick=closeModal;$('catForm').onsubmit=async e=>{e.preventDefault();const name=$('catName').value.trim();const {error}=await sb.from('categories').insert({name,slug:slugify(name),description:$('catDesc').value.trim(),sort_order:categories.length+1,active:true});if(error)alert(error.message);else{closeModal();loadMenu();loadDashboard();}};}
-  function editItem(id){const i=items.find(x=>x.id===id)||{name:'',description:'',price:'',category_id:categories[0]?.id||'',active:true,featured:false,sort_order:0};openModal(`<h3>${id?'Editar prato':'Novo prato'}</h3><form id="itemForm" class="modal-form"><label>Nome<input id="itemName" value="${attr(i.name)}" required></label><label>Descrição<textarea id="itemDesc" rows="4">${esc(i.description||'')}</textarea></label><div class="row"><label>Preço<input id="itemPrice" type="number" step="0.01" min="0" value="${i.price??''}"></label><label>Categoria<select id="itemCat">${categories.map(c=>`<option value="${c.id}" ${c.id===i.category_id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label></div><div class="row"><label>Ordem<input id="itemOrder" type="number" value="${i.sort_order||0}"></label><label>Imagem (URL)<input id="itemImage" value="${attr(i.image_url||'')}" placeholder="https://..."></label></div><div class="modal-actions"><button type="button" class="secondary" id="cancel">Cancelar</button><button class="primary">Salvar prato</button></div></form>`);$('cancel').onclick=closeModal;$('itemForm').onsubmit=async e=>{e.preventDefault();const payload={name:$('itemName').value.trim(),slug:slugify($('itemName').value),description:$('itemDesc').value.trim(),price:$('itemPrice').value?Number($('itemPrice').value):null,category_id:$('itemCat').value||null,sort_order:Number($('itemOrder').value)||0,image_url:$('itemImage').value.trim()||null,active:i.active!==false,featured:i.featured||false};const res=id?await sb.from('menu_items').update(payload).eq('id',id):await sb.from('menu_items').insert(payload);if(res.error)alert(res.error.message);else{closeModal();loadMenu();loadDashboard();}};}
-  async function toggleItem(id){const i=items.find(x=>x.id===id);if(!i)return;const {error}=await sb.from('menu_items').update({active:!i.active}).eq('id',id);if(error)alert(error.message);else{loadMenu();loadDashboard();}}
-  async function deleteItem(id){if(!confirm('Excluir este prato?'))return;const {error}=await sb.from('menu_items').delete().eq('id',id);if(error)alert(error.message);else{loadMenu();loadDashboard();}}
-async function loadReservations(){const {data,error}=await sb.from('reservations').select('*').order('reservation_date',{ascending:true}).order('reservation_time',{ascending:true});if(error){$('reservationsList').innerHTML=`<p style="padding:20px" class="error">${esc(error.message)}</p>`;return;}$('reservationsList').innerHTML=data?.length?`<table class="table"><thead><tr><th>Cliente</th><th>Data</th><th>Horário</th><th>Pessoas</th><th>Status</th><th>Observações</th><th>Ação</th></tr></thead><tbody>${data.map(r=>`<tr><td><strong>${esc(r.customer_name)}</strong><br>${esc(r.phone)}</td><td>${fmtDate(r.reservation_date)}</td><td>${String(r.reservation_time||'').slice(0,5)}</td><td>${r.guests}</td><td><select class="res-status" data-id="${r.id}"><option value="pending" ${r.status==='pending'?'selected':''}>Pendente</option><option value="confirmed" ${r.status==='confirmed'?'selected':''}>Confirmada</option><option value="cancelled" ${r.status==='cancelled'?'selected':''}>Cancelada</option><option value="completed" ${r.status==='completed'?'selected':''}>Concluída</option></select></td><td>${r.notes?esc(r.notes):'—'}</td><td><button type="button" class="mini danger" data-res-delete="${r.id}">Excluir</button></td></tr>`).join('')}</tbody></table>`:'<div style="padding:30px">Nenhuma reserva cadastrada.</div>';document.querySelectorAll('.res-status').forEach(s=>s.onchange=async()=>{const {error}=await sb.from('reservations').update({status:s.value}).eq('id',s.dataset.id);if(error)alert(error.message);loadDashboard();});document.querySelectorAll('[data-res-delete]').forEach(b=>b.onclick=async()=>{if(!confirm('Excluir esta reserva permanentemente?'))return;b.disabled=true;const {error}=await sb.from('reservations').delete().eq('id',b.dataset.resDelete);if(error){alert('Não foi possível excluir a reserva: '+error.message);b.disabled=false;return;}await loadReservations();await loadDashboard();});}
-  $('refreshReservations').onclick=loadReservations;
-  async function loadReviews(){const {data,error}=await sb.from('reviews').select('*').order('created_at',{ascending:false});if(error){$('reviewsList').innerHTML=`<p class="error" style="padding:20px">${esc(error.message)}</p>`;return;}$('reviewsList').innerHTML=data?.length?`<table class="table"><thead><tr><th>Cliente</th><th>Nota</th><th>Comentário</th><th>Visível</th><th></th></tr></thead><tbody>${data.map(r=>`<tr><td>${esc(r.customer_name)}</td><td>${'★'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</td><td>${esc(r.comment||'')}</td><td><span class="status">${r.published?'Publicada':'Oculta'}</span></td><td><button class="mini" data-review-toggle="${r.id}">${r.published?'Ocultar':'Publicar'}</button></td></tr>`).join('')}</tbody></table>`:'<div style="padding:30px">Nenhuma avaliação cadastrada.</div>';document.querySelectorAll('[data-review-toggle]').forEach(b=>b.onclick=async()=>{const r=data.find(x=>x.id===b.dataset.reviewToggle);const {error}=await sb.from('reviews').update({published:!r.published}).eq('id',r.id);if(error)alert(error.message);else{loadReviews();loadDashboard();}});}
-  $('newReviewBtn').onclick=()=>{openModal(`<h3>Nova avaliação</h3><form id="reviewForm" class="modal-form"><label>Nome do cliente<input id="rvName" required></label><label>Nota<select id="rvRating"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></label><label>Comentário<textarea id="rvComment" rows="4"></textarea></label><label>Link da avaliação original<input id="rvUrl" placeholder="https://www.google.com/..." ></label><div class="modal-actions"><button type="button" class="secondary" id="cancel">Cancelar</button><button class="primary">Salvar</button></div></form>`);$('cancel').onclick=closeModal;$('reviewForm').onsubmit=async e=>{e.preventDefault();const {error}=await sb.from('reviews').insert({customer_name:$('rvName').value.trim(),rating:Number($('rvRating').value),comment:$('rvComment').value.trim(),external_url:$('rvUrl').value.trim()||null,published:false,featured:false,source:'google'});if(error)alert(error.message);else{closeModal();loadReviews();loadDashboard();}};};
-  async function loadRestaurant(){const {data,error}=await sb.from('restaurants').select('*').limit(1).maybeSingle();if(error){alert(error.message);return;}if(!data)return;$('rName').value=data.name||'';$('rWhatsapp').value=data.whatsapp||data.phone||'';$('rAddress').value=data.address||'';$('rMaps').value=data.google_maps_url||'';$('rInstagram').value=data.instagram_url||'';$('rDescription').value=data.description||'';}
-  $('saveRestaurant').onclick=async()=>{const {data}=await sb.from('restaurants').select('id').limit(1).maybeSingle();if(!data){$('settingsMessage').textContent='Registro do restaurante não encontrado.';return;}const {error}=await sb.from('restaurants').update({name:$('rName').value.trim(),whatsapp:$('rWhatsapp').value.trim(),phone:$('rWhatsapp').value.trim(),address:$('rAddress').value.trim(),google_maps_url:$('rMaps').value.trim(),instagram_url:$('rInstagram').value.trim(),description:$('rDescription').value.trim()}).eq('id',data.id);$('settingsMessage').textContent=error?error.message:'Alterações salvas com sucesso.';};
-  function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}function attr(s){return esc(s).replace(/`/g,'&#96;')}function fmtDate(s){if(!s)return'—';return new Date(s+'T00:00:00').toLocaleDateString('pt-BR');}
+  function slugify(value) {
+    return String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  }
+
+  function normalizeWhatsapp(value) {
+    let number = String(value || '').replace(/\D/g, '');
+
+    if (!number) return '';
+
+    if (!number.startsWith('55')) {
+      number = '55' + number;
+    }
+
+    return number;
+  }
+
+  function formatWhatsapp(value) {
+    const number = normalizeWhatsapp(value);
+
+    if (number.length === 13) {
+      return `55 (${number.slice(2,4)}) ${number.slice(4,9)}-${number.slice(9)}`;
+    }
+
+    return value || '';
+  }
+
+  function showError(message) {
+    if ($('loginError')) {
+      $('loginError').textContent = message || '';
+    }
+  }
+
+  function openModal(html) {
+    $('modalContent').innerHTML = html;
+    $('modal').classList.remove('hidden');
+  }
+
+  function closeModal() {
+    $('modal').classList.add('hidden');
+    $('modalContent').innerHTML = '';
+  }
+
+  function go(section) {
+    document.querySelectorAll('.page-section').forEach(el => {
+      el.classList.remove('active-section');
+    });
+
+    const page = $(section);
+
+    if (page) {
+      page.classList.add('active-section');
+    }
+
+    document.querySelectorAll('.nav-item').forEach(el => {
+      el.classList.toggle(
+        'active',
+        el.dataset.section === section
+      );
+    });
+
+    const titles = {
+      dashboard: 'Visão geral',
+      cardapio: 'Cardápio',
+      reservas: 'Reservas',
+      avaliacoes: 'Avaliações',
+      configuracoes: 'Configurações'
+    };
+
+    if ($('pageTitle')) {
+      $('pageTitle').textContent = titles[section] || section;
+    }
+
+    if (section === 'cardapio') loadMenu();
+    if (section === 'reservas') loadReservations();
+    if (section === 'avaliacoes') loadReviews();
+    if (section === 'configuracoes') loadRestaurant();
+  }
+
+  async function init() {
+    if (
+      !supabaseLib ||
+      !cfg.url ||
+      !cfg.anonKey ||
+      String(cfg.anonKey).startsWith('COLE_')
+    ) {
+      showError(
+        'Configure a chave pública do Supabase em /admin/config.js.'
+      );
+      return;
+    }
+
+    sb = supabaseLib.createClient(
+      cfg.url,
+      cfg.anonKey
+    );
+
+    const { data, error } = await sb.auth.getSession();
+
+    if (error) {
+      showError(error.message);
+      return;
+    }
+
+    if (data.session) {
+      await enter(data.session);
+    } else {
+      $('loginView').classList.remove('hidden');
+    }
+
+    sb.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        enter(session);
+      }
+    });
+  }
+
+  async function enter(session) {
+    $('loginView').classList.add('hidden');
+    $('appView').classList.remove('hidden');
+
+    if ($('userEmail')) {
+      $('userEmail').textContent =
+        session.user.email || '';
+    }
+
+    await loadDashboard();
+  }
+
+  async function login(e) {
+    e.preventDefault();
+
+    showError('');
+
+    const email = $('email').value.trim();
+    const password = $('password').value;
+
+    const { error } =
+      await sb.auth.signInWithPassword({
+        email,
+        password
+      });
+
+    if (error) {
+      showError(
+        error.message === 'Invalid login credentials'
+          ? 'E-mail ou senha inválidos.'
+          : error.message
+      );
+    }
+  }
+
+  async function logout() {
+    await sb.auth.signOut();
+
+    $('appView').classList.add('hidden');
+    $('loginView').classList.remove('hidden');
+  }
+
+  async function loadDashboard() {
+    const [
+      menu,
+      cats,
+      reservations,
+      reviews
+    ] = await Promise.all([
+      sb.from('menu_items')
+        .select('id', {
+          count: 'exact',
+          head: true
+        })
+        .eq('active', true),
+
+      sb.from('categories')
+        .select('id', {
+          count: 'exact',
+          head: true
+        })
+        .eq('active', true),
+
+      sb.from('reservations')
+        .select('id', {
+          count: 'exact',
+          head: true
+        })
+        .eq('status', 'pending'),
+
+      sb.from('reviews')
+        .select('id', {
+          count: 'exact',
+          head: true
+        })
+        .eq('published', true)
+    ]);
+
+    if ($('statItems'))
+      $('statItems').textContent = menu.count ?? 0;
+
+    if ($('statCategories'))
+      $('statCategories').textContent = cats.count ?? 0;
+
+    if ($('statReservations'))
+      $('statReservations').textContent =
+        reservations.count ?? 0;
+
+    if ($('statReviews'))
+      $('statReviews').textContent =
+        reviews.count ?? 0;
+  }
+
+  async function loadCategories() {
+    const { data, error } =
+      await sb.from('categories')
+        .select('*')
+        .order('sort_order', {
+          ascending: true
+        })
+        .order('name', {
+          ascending: true
+        });
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    categories = data || [];
+
+    const select = $('categoryFilter');
+
+    if (!select) return;
+
+    const current = select.value || '';
+
+    select.innerHTML =
+      '<option value="">Todas as categorias</option>' +
+      categories.map(cat =>
+        `<option value="${attr(cat.id)}">
+          ${esc(cat.name)}
+        </option>`
+      ).join('');
+
+    if (
+      categories.some(
+        cat => String(cat.id) === String(current)
+      )
+    ) {
+      select.value = current;
+    } else {
+      select.value = '';
+    }
+  }
+
+  async function loadMenu() {
+    await loadCategories();
+
+    const { data, error } =
+      await sb.from('menu_items')
+        .select('*, categories(name)')
+        .order('sort_order', {
+          ascending: true
+        })
+        .order('name', {
+          ascending: true
+        });
+
+    if (error) {
+      $('menuList').innerHTML =
+        `<p class="error">${esc(error.message)}</p>`;
+      return;
+    }
+
+    items = data || [];
+
+    renderMenu();
+  }
+
+  function renderMenu() {
+    const list = $('menuList');
+
+    if (!list) return;
+
+    const selected =
+      $('categoryFilter')?.value || '';
+
+    const filtered = selected
+      ? items.filter(item =>
+          String(item.category_id || '') ===
+          String(selected)
+        )
+      : items;
+
+    if (!filtered.length) {
+      list.innerHTML =
+        '<div style="padding:30px">Nenhum prato encontrado.</div>';
+      return;
+    }
+
+    list.innerHTML = `
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Prato</th>
+            <th>Categoria</th>
+            <th>Preço</th>
+            <th>Status</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          ${filtered.map(item => `
+            <tr>
+              <td>
+                <strong>${esc(item.name)}</strong><br>
+                <small>${esc(item.description || '')}</small>
+              </td>
+
+              <td>
+                ${esc(item.categories?.name || '—')}
+              </td>
+
+              <td>
+                ${money(item.price)}
+              </td>
+
+              <td>
+                <span class="status">
+                  ${item.active ? 'Ativo' : 'Oculto'}
+                </span>
+              </td>
+
+              <td>
+                <div class="actions">
+
+                  <button
+                    type="button"
+                    class="mini"
+                    data-edit="${attr(item.id)}">
+                    Editar
+                  </button>
+
+                  <button
+                    type="button"
+                    class="mini"
+                    data-toggle="${attr(item.id)}">
+                    ${item.active ? 'Ocultar' : 'Ativar'}
+                  </button>
+
+                  <button
+                    type="button"
+                    class="mini danger"
+                    data-delete="${attr(item.id)}">
+                    Excluir
+                  </button>
+
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+
+    list.querySelectorAll('[data-edit]')
+      .forEach(button => {
+        button.onclick = () =>
+          editItem(button.dataset.edit);
+      });
+
+    list.querySelectorAll('[data-toggle]')
+      .forEach(button => {
+        button.onclick = () =>
+          toggleItem(button.dataset.toggle);
+      });
+
+    list.querySelectorAll('[data-delete]')
+      .forEach(button => {
+        button.onclick = () =>
+          deleteItem(button.dataset.delete);
+      });
+  }
+
+  function newCategory() {
+    openModal(`
+      <h3>Nova categoria</h3>
+
+      <form id="catForm" class="modal-form">
+
+        <label>
+          Nome
+          <input id="catName" required>
+        </label>
+
+        <label>
+          Descrição
+          <textarea id="catDesc" rows="3"></textarea>
+        </label>
+
+        <div class="modal-actions">
+          <button
+            type="button"
+            class="secondary"
+            id="cancel">
+            Cancelar
+          </button>
+
+          <button class="primary">
+            Criar categoria
+          </button>
+        </div>
+
+      </form>
+    `);
+
+    $('cancel').onclick = closeModal;
+
+    $('catForm').onsubmit = async e => {
+      e.preventDefault();
+
+      const name =
+        $('catName').value.trim();
+
+      if (!name) return;
+
+      const { error } =
+        await sb.from('categories').insert({
+          name,
+          slug: slugify(name),
+          description:
+            $('catDesc').value.trim(),
+          sort_order:
+            categories.length + 1,
+          active: true
+        });
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      closeModal();
+
+      await loadMenu();
+      await loadDashboard();
+    };
+  }
+
+  function editItem(id) {
+    const existing =
+      items.find(
+        item => String(item.id) === String(id)
+      );
+
+    const item = existing || {
+      name: '',
+      description: '',
+      price: '',
+      category_id:
+        categories[0]?.id || '',
+      active: true,
+      featured: false,
+      sort_order: 0,
+      image_url: ''
+    };
+
+    openModal(`
+      <h3>
+        ${id ? 'Editar prato' : 'Novo prato'}
+      </h3>
+
+      <form id="itemForm" class="modal-form">
+
+        <label>
+          Nome
+          <input
+            id="itemName"
+            value="${attr(item.name)}"
+            required>
+        </label>
+
+        <label>
+          Descrição
+          <textarea
+            id="itemDesc"
+            rows="4">${esc(item.description || '')}</textarea>
+        </label>
+
+        <div class="row">
+
+          <label>
+            Preço
+            <input
+              id="itemPrice"
+              type="number"
+              step="0.01"
+              min="0"
+              value="${attr(item.price ?? '')}">
+          </label>
+
+          <label>
+            Categoria
+            <select id="itemCat">
+              ${categories.map(cat => `
+                <option
+                  value="${attr(cat.id)}"
+                  ${String(cat.id) ===
+                    String(item.category_id)
+                    ? 'selected'
+                    : ''}>
+                  ${esc(cat.name)}
+                </option>
+              `).join('')}
+            </select>
+          </label>
+
+        </div>
+
+        <div class="row">
+
+          <label>
+            Ordem
+            <input
+              id="itemOrder"
+              type="number"
+              value="${Number(item.sort_order) || 0}">
+          </label>
+
+          <label>
+            Imagem (URL)
+            <input
+              id="itemImage"
+              value="${attr(item.image_url || '')}"
+              placeholder="https://...">
+          </label>
+
+        </div>
+
+        <div class="modal-actions">
+
+          <button
+            type="button"
+            class="secondary"
+            id="cancel">
+            Cancelar
+          </button>
+
+          <button class="primary">
+            ${id ? 'Salvar alterações' : 'Criar prato'}
+          </button>
+
+        </div>
+
+      </form>
+    `);
+
+    $('cancel').onclick = closeModal;
+
+    $('itemForm').onsubmit = async e => {
+      e.preventDefault();
+
+      const payload = {
+        name:
+          $('itemName').value.trim(),
+
+        slug:
+          slugify($('itemName').value),
+
+        description:
+          $('itemDesc').value.trim(),
+
+        price:
+          $('itemPrice').value
+            ? Number($('itemPrice').value)
+            : null,
+
+        category_id:
+          $('itemCat').value || null,
+
+        sort_order:
+          Number($('itemOrder').value) || 0,
+
+        image_url:
+          $('itemImage').value.trim() || null,
+
+        active:
+          item.active !== false,
+
+        featured:
+          item.featured === true
+      };
+
+      const result = id
+        ? await sb.from('menu_items')
+            .update(payload)
+            .eq('id', id)
+
+        : await sb.from('menu_items')
+            .insert(payload);
+
+      if (result.error) {
+        alert(result.error.message);
+        return;
+      }
+
+      closeModal();
+
+      await loadMenu();
+      await loadDashboard();
+    };
+  }
+
+  async function toggleItem(id) {
+    const item =
+      items.find(
+        x => String(x.id) === String(id)
+      );
+
+    if (!item) return;
+
+    const { error } =
+      await sb.from('menu_items')
+        .update({
+          active: !item.active
+        })
+        .eq('id', id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    await loadMenu();
+    await loadDashboard();
+  }
+
+  async function deleteItem(id) {
+    if (!confirm(
+      'Excluir este prato permanentemente?'
+    )) return;
+
+    const { error } =
+      await sb.from('menu_items')
+        .delete()
+        .eq('id', id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    await loadMenu();
+    await loadDashboard();
+  }
+
+  async function loadReservations() {
+    const { data, error } =
+      await sb.from('reservations')
+        .select('*')
+        .order('reservation_date', {
+          ascending: true
+        })
+        .order('reservation_time', {
+          ascending: true
+        });
+
+    if (error) {
+      $('reservationsList').innerHTML =
+        `<p class="error">${esc(error.message)}</p>`;
+      return;
+    }
+
+    if (!data?.length) {
+      $('reservationsList').innerHTML =
+        '<div style="padding:30px">Nenhuma reserva cadastrada.</div>';
+      return;
+    }
+
+    $('reservationsList').innerHTML = `
+      <table class="table">
+
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>Data</th>
+            <th>Horário</th>
+            <th>Pessoas</th>
+            <th>Status</th>
+            <th>Observações</th>
+            <th>Ação</th>
+          </tr>
+        </thead>
+
+        <tbody>
+
+          ${data.map(r => `
+            <tr>
+
+              <td>
+                <strong>${esc(r.customer_name)}</strong><br>
+                ${esc(r.phone)}
+              </td>
+
+              <td>
+                ${formatDate(r.reservation_date)}
+              </td>
+
+              <td>
+                ${esc(
+                  String(r.reservation_time || '')
+                    .slice(0,5)
+                )}
+              </td>
+
+              <td>
+                ${esc(r.guests)}
+              </td>
+
+              <td>
+
+                <select
+                  class="res-status"
+                  data-id="${attr(r.id)}">
+
+                  <option
+                    value="pending"
+                    ${r.status === 'pending'
+                      ? 'selected'
+                      : ''}>
+                    Pendente
+                  </option>
+
+                  <option
+                    value="confirmed"
+                    ${r.status === 'confirmed'
+                      ? 'selected'
+                      : ''}>
+                    Confirmada
+                  </option>
+
+                  <option
+                    value="cancelled"
+                    ${r.status === 'cancelled'
+                      ? 'selected'
+                      : ''}>
+                    Cancelada
+                  </option>
+
+                  <option
+                    value="completed"
+                    ${r.status === 'completed'
+                      ? 'selected'
+                      : ''}>
+                    Concluída
+                  </option>
+
+                </select>
+
+              </td>
+
+              <td>
+                ${r.notes
+                  ? esc(r.notes)
+                  : '—'}
+              </td>
+
+              <td>
+
+                <button
+                  type="button"
+                  class="mini danger"
+                  data-res-delete="${attr(r.id)}">
+                  Excluir
+                </button>
+
+              </td>
+
+            </tr>
+          `).join('')}
+
+        </tbody>
+      </table>
+    `;
+
+    document
+      .querySelectorAll('.res-status')
+      .forEach(select => {
+
+        select.onchange = async () => {
+
+          const { error } =
+            await sb.from('reservations')
+              .update({
+                status: select.value
+              })
+              .eq(
+                'id',
+                select.dataset.id
+              );
+
+          if (error) {
+            alert(
+              'Não foi possível atualizar: ' +
+              error.message
+            );
+            return;
+          }
+
+          await loadDashboard();
+        };
+      });
+
+    document
+      .querySelectorAll('[data-res-delete]')
+      .forEach(button => {
+
+        button.onclick = async () => {
+
+          const id =
+            button.dataset.resDelete;
+
+          if (!confirm(
+            'Excluir esta reserva permanentemente?'
+          )) return;
+
+          button.disabled = true;
+          button.textContent = 'Excluindo...';
+
+          const { error } =
+            await sb.from('reservations')
+              .delete()
+              .eq('id', id);
+
+          if (error) {
+            alert(
+              'Não foi possível excluir: ' +
+              error.message
+            );
+
+            button.disabled = false;
+            button.textContent = 'Excluir';
+            return;
+          }
+
+          await loadReservations();
+          await loadDashboard();
+        };
+      });
+  }
+
+  async function loadReviews() {
+    const { data, error } =
+      await sb.from('reviews')
+        .select('*')
+        .order('created_at', {
+          ascending: false
+        });
+
+    if (error) {
+      $('reviewsList').innerHTML =
+        `<p class="error">${esc(error.message)}</p>`;
+      return;
+    }
+
+    if (!data?.length) {
+      $('reviewsList').innerHTML =
+        '<div style="padding:30px">Nenhuma avaliação cadastrada.</div>';
+      return;
+    }
+
+    $('reviewsList').innerHTML = `
+      <table class="table">
+
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>Nota</th>
+            <th>Comentário</th>
+            <th>Visível</th>
+            <th></th>
+          </tr>
+        </thead>
+
+        <tbody>
+
+          ${data.map(r => `
+            <tr>
+
+              <td>
+                ${esc(r.customer_name)}
+              </td>
+
+              <td>
+                ${'★'.repeat(Number(r.rating) || 0)}
+                ${'☆'.repeat(
+                  Math.max(
+                    0,
+                    5 - Number(r.rating || 0)
+                  )
+                )}
+              </td>
+
+              <td>
+                ${esc(r.comment || '')}
+              </td>
+
+              <td>
+                <span class="status">
+                  ${r.published
+                    ? 'Publicada'
+                    : 'Oculta'}
+                </span>
+              </td>
+
+              <td>
+
+                <button
+                  type="button"
+                  class="mini"
+                  data-review-toggle="${attr(r.id)}">
+                  ${r.published
+                    ? 'Ocultar'
+                    : 'Publicar'}
+                </button>
+
+              </td>
+
+            </tr>
+          `).join('')}
+
+        </tbody>
+      </table>
+    `;
+
+    document
+      .querySelectorAll('[data-review-toggle]')
+      .forEach(button => {
+
+        button.onclick = async () => {
+
+          const review =
+            data.find(
+              x =>
+                String(x.id) ===
+                String(button.dataset.reviewToggle)
+            );
+
+          if (!review) return;
+
+          const { error } =
+            await sb.from('reviews')
+              .update({
+                published:
+                  !review.published
+              })
+              .eq('id', review.id);
+
+          if (error) {
+            alert(error.message);
+            return;
+          }
+
+          await loadReviews();
+          await loadDashboard();
+        };
+      });
+  }
+
+  function newReview() {
+    openModal(`
+      <h3>Nova avaliação</h3>
+
+      <form id="reviewForm" class="modal-form">
+
+        <label>
+          Nome do cliente
+          <input id="rvName" required>
+        </label>
+
+        <label>
+          Nota
+          <select id="rvRating">
+            <option value="5">5</option>
+            <option value="4">4</option>
+            <option value="3">3</option>
+            <option value="2">2</option>
+            <option value="1">1</option>
+          </select>
+        </label>
+
+        <label>
+          Comentário
+          <textarea id="rvComment" rows="4"></textarea>
+        </label>
+
+        <label>
+          Link da avaliação original
+          <input
+            id="rvUrl"
+            placeholder="https://www.google.com/...">
+        </label>
+
+        <div class="modal-actions">
+
+          <button
+            type="button"
+            class="secondary"
+            id="cancel">
+            Cancelar
+          </button>
+
+          <button class="primary">
+            Salvar
+          </button>
+
+        </div>
+
+      </form>
+    `);
+
+    $('cancel').onclick = closeModal;
+
+    $('reviewForm').onsubmit = async e => {
+      e.preventDefault();
+
+      const { error } =
+        await sb.from('reviews').insert({
+          customer_name:
+            $('rvName').value.trim(),
+
+          rating:
+            Number($('rvRating').value),
+
+          comment:
+            $('rvComment').value.trim(),
+
+          external_url:
+            $('rvUrl').value.trim() || null,
+
+          published: false,
+          featured: false,
+          source: 'google'
+        });
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      closeModal();
+
+      await loadReviews();
+      await loadDashboard();
+    };
+  }
+
+  async function loadRestaurant() {
+    const { data, error } =
+      await sb.from('restaurants')
+        .select('*')
+        .limit(1)
+        .maybeSingle();
+
+    if (error) {
+      if ($('settingsMessage'))
+        $('settingsMessage').textContent =
+          error.message;
+      return;
+    }
+
+    if (!data) {
+      if ($('settingsMessage'))
+        $('settingsMessage').textContent =
+          'Registro do restaurante não encontrado.';
+      return;
+    }
+
+    $('rName').value =
+      data.name || '';
+
+    $('rWhatsapp').value =
+      formatWhatsapp(
+        data.whatsapp ||
+        data.phone ||
+        ''
+      );
+
+    $('rAddress').value =
+      data.address || '';
+
+    $('rMaps').value =
+      data.google_maps_url || '';
+
+    $('rInstagram').value =
+      data.instagram_url || '';
+
+    $('rDescription').value =
+      data.description || '';
+  }
+
+  async function saveRestaurant() {
+    const { data, error } =
+      await sb.from('restaurants')
+        .select('id')
+        .limit(1)
+        .maybeSingle();
+
+    if (error) {
+      $('settingsMessage').textContent =
+        error.message;
+      return;
+    }
+
+    if (!data) {
+      $('settingsMessage').textContent =
+        'Registro do restaurante não encontrado.';
+      return;
+    }
+
+    const whatsapp =
+      normalizeWhatsapp(
+        $('rWhatsapp').value
+      );
+
+    if (
+      !whatsapp ||
+      whatsapp.length !== 13
+    ) {
+      $('settingsMessage').textContent =
+        'Digite: 55 (17) 99702-5497';
+      return;
+    }
+
+    const result =
+      await sb.from('restaurants')
+        .update({
+          name:
+            $('rName').value.trim(),
+
+          whatsapp:
+            whatsapp,
+
+          phone:
+            whatsapp,
+
+          address:
+            $('rAddress').value.trim(),
+
+          google_maps_url:
+            $('rMaps').value.trim(),
+
+          instagram_url:
+            $('rInstagram').value.trim(),
+
+          description:
+            $('rDescription').value.trim()
+        })
+        .eq('id', data.id);
+
+    if (result.error) {
+      $('settingsMessage').textContent =
+        result.error.message;
+      return;
+    }
+
+    $('rWhatsapp').value =
+      formatWhatsapp(whatsapp);
+
+    $('settingsMessage').textContent =
+      'Alterações salvas com sucesso.';
+  }
+
+  function formatDate(value) {
+    if (!value) return '—';
+
+    return new Date(
+      value + 'T00:00:00'
+    ).toLocaleDateString('pt-BR');
+  }
+
+  // LOGIN
+  if ($('loginForm')) {
+    $('loginForm').addEventListener(
+      'submit',
+      login
+    );
+  }
+
+  // SAIR
+  if ($('logoutBtn')) {
+    $('logoutBtn').addEventListener(
+      'click',
+      logout
+    );
+  }
+
+  // FECHAR MODAL
+  if ($('closeModal')) {
+    $('closeModal').addEventListener(
+      'click',
+      closeModal
+    );
+  }
+
+  if ($('modal')) {
+    $('modal').addEventListener(
+      'click',
+      e => {
+        if (e.target === $('modal')) {
+          closeModal();
+        }
+      }
+    );
+  }
+
+  // MENU LATERAL
+  document
+    .querySelectorAll('.nav-item')
+    .forEach(button => {
+      button.addEventListener(
+        'click',
+        () => go(button.dataset.section)
+      );
+    });
+
+  document
+    .querySelectorAll('[data-go]')
+    .forEach(button => {
+      button.addEventListener(
+        'click',
+        () => go(button.dataset.go)
+      );
+    });
+
+  // FILTRO DE CATEGORIAS
+  if ($('categoryFilter')) {
+    $('categoryFilter').addEventListener(
+      'change',
+      renderMenu
+    );
+  }
+
+  // NOVA CATEGORIA
+  if ($('newCategoryBtn')) {
+    $('newCategoryBtn').addEventListener(
+      'click',
+      newCategory
+    );
+  }
+
+  // NOVO PRATO
+  if ($('newItemBtn')) {
+    $('newItemBtn').addEventListener(
+      'click',
+      () => editItem()
+    );
+  }
+
+  // ATUALIZAR RESERVAS
+  if ($('refreshReservations')) {
+    $('refreshReservations').addEventListener(
+      'click',
+      loadReservations
+    );
+  }
+
+  // NOVA AVALIAÇÃO
+  if ($('newReviewBtn')) {
+    $('newReviewBtn').addEventListener(
+      'click',
+      newReview
+    );
+  }
+
+  // SALVAR CONFIGURAÇÕES
+  if ($('saveRestaurant')) {
+    $('saveRestaurant').addEventListener(
+      'click',
+      saveRestaurant
+    );
+  }
+
   init();
+
 })();
