@@ -274,12 +274,7 @@
 
     const current = select.value || '';
 
-    select.innerHTML =
-      '<option value="">Todas as categorias</option>' +
-      categories.map(cat =>
-        `<option value="${attr(cat.id)}">${esc(cat.name)}</option>`
-      ).join('');
-
+  
     if (
       categories.some(
         cat => String(cat.id) === String(current)
@@ -323,11 +318,12 @@
     const selected =
       $('categoryFilter')?.value || '';
 
-    const filtered = selected
-      ? items.filter(item =>
-          String(item.category_id) === String(selected)
-        )
-      : items;
+   const filtered = selected
+  ? items.filter(item =>
+      String(item.categories?.name || '').trim().toLowerCase() ===
+      String(selected).trim().toLowerCase()
+    )
+  : items;
 
     if (!filtered.length) {
       list.innerHTML =
