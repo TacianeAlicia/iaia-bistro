@@ -273,7 +273,11 @@
     if (!select) return;
 
     const current = select.value || '';
-
+select.innerHTML =
+  '<option value="">Todas as categorias</option>' +
+  categories.map(cat =>
+    `<option value="${attr(cat.name)}">${esc(cat.name)}</option>`
+  ).join('');
   
     if (
       categories.some(
