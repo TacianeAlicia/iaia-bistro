@@ -321,8 +321,4 @@ em { font-style: italic; }
   .faq-list summary { padding:20px 0; font-size:1rem; }
   .faq-list details p { font-size:13px; }
 }
-@media (max-width: 800px) {
-  .hero-video {
-    display: none;
-  }
-}
+
