@@ -611,9 +611,6 @@ select.innerHTML =
         sort_order:
           Number($('itemOrder').value) || 0,
 
-        image_url:
-          $('itemImage').value.trim() || null,
-
         active:
           item.active !== false,
 
