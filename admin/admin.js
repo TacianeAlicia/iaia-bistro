@@ -930,12 +930,21 @@ select.innerHTML =
 
               <td>
 
-                <button
-                  type="button"
-                  class="mini"
-                  data-review-toggle="${attr(r.id)}">
-                  ${r.published ? 'Ocultar' : 'Publicar'}
-                </button>
+               <div style="display:flex;gap:8px;flex-wrap:wrap;">
+  <button
+    type="button"
+    class="mini"
+    data-review-toggle="${attr(r.id)}">
+    ${r.published ? 'Ocultar' : 'Publicar'}
+  </button>
+
+  <button
+    type="button"
+    class="mini danger"
+    data-review-delete="${attr(r.id)}">
+    Excluir
+  </button>
+</div>
 
               </td>
 
@@ -979,7 +988,39 @@ select.innerHTML =
         };
       });
   }
+  document
+    .querySelectorAll('[data-review-delete]')
+    .forEach(button => {
 
+      button.onclick = async () => {
+
+        const id = button.dataset.reviewDelete;
+
+        if (!confirm('Tem certeza que deseja excluir esta avaliação?')) {
+          return;
+        }
+
+        button.disabled = true;
+        button.textContent = 'Excluindo...';
+
+        const { error } = await sb
+          .from('reviews')
+          .delete()
+          .eq('id', id);
+
+        if (error) {
+          alert('Não foi possível excluir: ' + error.message);
+          button.disabled = false;
+          button.textContent = 'Excluir';
+          return;
+        }
+
+        await loadReviews();
+        await loadDashboard();
+      };
+    });
+
+ 
   function newReview() {
     openModal(`
       <h3>Nova avaliação</h3>
