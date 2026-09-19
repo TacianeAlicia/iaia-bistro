@@ -56,32 +56,50 @@ address { font-style: normal; }
 .menu-toggle span { display: block; width: 24px; height: 1px; background: currentColor; margin: 6px 0; }
 
 .hero {
-  position: relative; min-height: 100svh; display: grid; place-items: center;
-  overflow: hidden; isolation: isolate; background: #111; color: white;
+  position: relative;
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  isolation: isolate;
+  background: #111;
+  color: white;
 }
-.hero-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -4; filter: saturate(.82) contrast(1.08); }
+
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -5;
+  background: url("/assets/iaia-poster.jpg") center center / cover no-repeat;
+}
+
+.hero-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: -4;
+  filter: saturate(.82) contrast(1.08);
+}
+
 .hero-shade {
-  position: absolute; inset: 0; z-index: -3;
+  position: absolute;
+  inset: 0;
+  z-index: -3;
   background: linear-gradient(180deg, rgba(0,0,0,.48), rgba(0,0,0,.15) 40%, rgba(0,0,0,.8));
 }
+
 .hero-noise {
-  position: absolute; inset: 0; z-index: -2; opacity: .06; pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  opacity: .06;
+  pointer-events: none;
   background-image: radial-gradient(rgba(255,255,255,.9) .5px, transparent .5px);
   background-size: 4px 4px;
 }
-.hero-content { width: min(950px, calc(100% - 30px)); text-align: center; }
-.eyebrow {
-  margin: 0 0 18px; font: 700 10px/1.3 Arial, sans-serif;
-  letter-spacing: .34em; text-transform: uppercase;
-}
-.eyebrow.dark { color: #4d4a43; }
-.hero-logo, .error-logo {
-  display: inline-grid; place-items: center; width: 76px; height: 76px; margin-bottom: 18px;
-  border-radius: 50%; background: rgba(15,14,13,.9); color: var(--cream);
-  font-size: 25px; line-height: .78; font-weight: 700; box-shadow: 0 20px 60px rgba(0,0,0,.25);
-}
-.hero h1 {
-  margin: 0; font-size: clamp(4.1rem, 12vw, 9.8rem); line-height: .8;
   letter-spacing: -.065em; font-weight: 500;
 }
 .hero-subtitle { max-width: 560px; margin: 32px auto 28px; font-size: clamp(1rem, 1.5vw, 1.3rem); line-height: 1.55; }
@@ -302,4 +320,9 @@ em { font-style: italic; }
   .faq-layout { grid-template-columns:1fr; gap:38px; }
   .faq-list summary { padding:20px 0; font-size:1rem; }
   .faq-list details p { font-size:13px; }
+}
+@media (max-width: 800px) {
+  .hero-video {
+    display: none;
+  }
 }
