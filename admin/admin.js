@@ -557,14 +557,6 @@ select.innerHTML =
               value="${Number(item.sort_order) || 0}">
           </label>
 
-          <label>
-            Imagem (URL)
-            <input
-              id="itemImage"
-              value="${attr(item.image_url || '')}"
-              placeholder="https://...">
-          </label>
-
         </div>
 
         <div class="modal-actions">
