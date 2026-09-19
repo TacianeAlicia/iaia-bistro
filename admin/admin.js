@@ -144,12 +144,10 @@
       return;
     }
 
-    if (data.session) {
-      await enter(data.session);
-    } else {
-      $('loginView').classList.remove('hidden');
-    }
+   await sb.auth.signOut();
 
+$('loginView').classList.remove('hidden');
+$('appView').classList.add('hidden');
     sb.auth.onAuthStateChange((_event, session) => {
       if (session) {
         enter(session);
