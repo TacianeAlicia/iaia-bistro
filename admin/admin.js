@@ -1337,6 +1337,35 @@ select.innerHTML =
     );
   }
 
+ document.addEventListener('click', async (e) => {
+  const button = e.target.closest('[data-review-delete]');
+
+  if (!button) return;
+
+  const id = button.dataset.reviewDelete;
+
+  if (!confirm('Tem certeza que deseja excluir esta avaliação?')) {
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = 'Excluindo...';
+
+  const { error } = await sb
+    .from('reviews')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    alert('Não foi possível excluir: ' + error.message);
+    button.disabled = false;
+    button.textContent = 'Excluir';
+    return;
+  }
+
+  await loadReviews();
+  await loadDashboard();
+});
   init();
 
 })();
